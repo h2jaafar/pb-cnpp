@@ -4,18 +4,24 @@ import numpy as np
 
 
 def main():
-    global path
+    
     path = '/home/hussein/Desktop/test_maps_WPN/training_maps/64x64_10k_urf/'
-    save_path = '/home/hussein/Desktop/test_maps_WPN/training_maps/dat_files/test/test5.dat'
+    astar_paths = '/home/hussein/Desktop/test_maps_WPN/training_maps/paths_64x64_10k_urf.json'
+    save_path = '/home/hussein/Desktop/test_maps_WPN/training_maps/dat_files/test/'
+
+
     inputs = [] # Should be a list with each line as the map obstacles (maps are sequential row 1 row 2 row 3 all sequential )
     g_maps = [] # should be a list with each row, where 1 is the start location
     s_maps = []
-
+    outputs = []
     nbr_maps = 10
+
+    outputs_dirty = open_astar_paths(astar_paths)
 
     for mp in range(nbr_maps):
         grid,goal,start = open_map(mp,path)
         size =int(len(grid))
+
         grid = grid_cleanup(grid)
 
         goal_grid = point_to_grid(goal,size)
@@ -24,11 +30,21 @@ def main():
         start_grid = point_to_grid(start,size)
         start_grid = grid_cleanup(start_grid)
 
+        trace = outputs_dirty[mp]
+        trace_grid = trace_cleanup(trace,size)
+        trace_grid_clean = grid_cleanup(trace_grid)
+        
+
         inputs.append(grid)
         g_maps.append(goal_grid)
         s_maps.append(start_grid)
+        outputs.append(trace_grid_clean)
 
-        write_to_dat(grid,save_path)
+        write_to_dat(inputs,str(save_path + 'inputs.dat'))
+        write_to_dat(g_maps,str(save_path + 'g_maps.dat'))
+        write_to_dat(s_maps,str(save_path + 's_maps.dat'))
+        write_to_dat(outputs,str(save_path + 'outputs.dat'))
+    
 
     print("Finished Processing")
         
@@ -41,6 +57,15 @@ def open_map(dom,path):
         data = json.load(json_file)
         print('Opening file: ' + str(path) + str(dom) + '.json' )
         return data['grid'], data['goal'], data['agent']
+
+def open_astar_paths(path):
+    '''
+    Used to open a single json for astar paths
+    '''
+    with open(str(path)) as json_file:
+        data = json.load(json_file)
+        print('Opening file: ' + str(path))
+        return data
 
 def grid_cleanup(grid):
     '''
@@ -56,14 +81,28 @@ def point_to_grid(point,size):
     '''
     Converts a coordinate to a grid-based location
     Ex. [3,2]
-    [0 0 0 0 0 0 1 0 0 0] (like [0 0 0, 0 0 1, 0 0 0]) but flattened  
+    (like [0 0 0, 0 0 1, 0 0 0])  
     '''
     points_as_grid = np.zeros((size,size))
 
-    points_as_grid[point[0],point[1]] = 1
+    points_as_grid[point[0],point[1]] = int(1)
 
 
-    return points_as_grid
+    return points_as_grid.astype('int32')
+
+def trace_cleanup(trace,size):
+    '''
+    Converts points in a trace to grid paths
+    '''
+
+    trace_grid = np.zeros((size,size))
+
+    for point in trace:
+        trace_grid[point[0],point[1]] = int(1)
+    
+    return trace_grid.astype('int32')
+
+
 
 def write_to_dat(grid,path):
 
@@ -78,9 +117,5 @@ def write_to_dat(grid,path):
     print("Written to file", path)
     return
 
-def write_cleanup(data,size):
-    '''
-    Removes brackets and commas, prepares for writing to file
-    '''
 
 main()
