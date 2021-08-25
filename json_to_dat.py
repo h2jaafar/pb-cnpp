@@ -5,22 +5,29 @@ import numpy as np
 
 def main():
     
-    path = '/home/hussein/Desktop/test_maps_WPN/training_maps/64x64_10k_urf/'
-    astar_paths = '/home/hussein/Desktop/test_maps_WPN/training_maps/paths_64x64_10k_urf.json'
-    save_path = '/home/hussein/Desktop/test_maps_WPN/training_maps/dat_files/test/'
+    map_size = str(8)
+
+    path_urf = '/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/' + map_size + '/urf/'
+    path_house = '/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/' + map_size + '/house/'
+
+    astar_paths_urf = '/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/' + map_size + '/paths_urf.json'
+    astar_paths_house = '/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/' + map_size + '/paths_urf.json'
+
+    save_path = './resources/dat_files/test_maps/' + map_size + '/'
 
 
     inputs = [] # Should be a list with each line as the map obstacles (maps are sequential row 1 row 2 row 3 all sequential )
     g_maps = [] # should be a list with each row, where 1 is the start location
     s_maps = []
     outputs = []
-    nbr_maps = 10
+    nbr_maps = 1500
 
-    outputs_dirty = open_astar_paths(astar_paths)
-
-    for mp in range(nbr_maps):
-        grid,goal,start = open_map(mp,path)
+    outputs_urf_untouched = open_astar_paths(astar_paths_urf)
+    outputs_house_untouched = open_astar_paths(astar_paths_house)
+    for mp in range(nbr_maps-1):
+        grid,goal,start = open_map(mp,path_urf)
         size =int(len(grid))
+       
 
         grid = grid_cleanup(grid)
 
@@ -30,7 +37,7 @@ def main():
         start_grid = point_to_grid(start,size)
         start_grid = grid_cleanup(start_grid)
 
-        trace = outputs_dirty[mp]
+        trace = outputs_urf_untouched[mp]
         trace_grid = trace_cleanup(trace,size)
         trace_grid_clean = grid_cleanup(trace_grid)
         
@@ -40,11 +47,41 @@ def main():
         s_maps.append(start_grid)
         outputs.append(trace_grid_clean)
 
-        write_to_dat(inputs,str(save_path + 'inputs.dat'))
-        write_to_dat(g_maps,str(save_path + 'g_maps.dat'))
-        write_to_dat(s_maps,str(save_path + 's_maps.dat'))
-        write_to_dat(outputs,str(save_path + 'outputs.dat'))
-    
+        write_to_dat(grid,str(save_path + 'inputs.dat'))
+        write_to_dat(goal_grid,str(save_path + 'g_maps.dat'))
+        write_to_dat(start_grid,str(save_path + 's_maps.dat'))
+        write_to_dat(trace_grid_clean,str(save_path + 'outputs.dat'))
+
+        ########################################################
+        # House
+
+        grid,goal,start = open_map(mp,path_house)
+        size =int(len(grid))
+       
+
+        grid = grid_cleanup(grid)
+
+        goal_grid = point_to_grid(goal,size)
+        goal_grid = grid_cleanup(goal_grid)
+
+        start_grid = point_to_grid(start,size)
+        start_grid = grid_cleanup(start_grid)
+
+        trace = outputs_house_untouched[mp]
+        trace_grid = trace_cleanup(trace,size)
+        trace_grid_clean = grid_cleanup(trace_grid)
+        
+
+        inputs.append(grid)
+        g_maps.append(goal_grid)
+        s_maps.append(start_grid)
+        outputs.append(trace_grid_clean)
+
+        write_to_dat(grid,str(save_path + 'inputs.dat'))
+        write_to_dat(goal_grid,str(save_path + 'g_maps.dat'))
+        write_to_dat(start_grid,str(save_path + 's_maps.dat'))
+        write_to_dat(trace_grid_clean,str(save_path + 'outputs.dat'))
+
 
     print("Finished Processing")
         
@@ -88,7 +125,7 @@ def point_to_grid(point,size):
     points_as_grid[point[0],point[1]] = int(1)
 
 
-    return points_as_grid.astype('int32')
+    return points_as_grid.astype('int8')
 
 def trace_cleanup(trace,size):
     '''
@@ -100,7 +137,7 @@ def trace_cleanup(trace,size):
     for point in trace:
         trace_grid[point[0],point[1]] = int(1)
     
-    return trace_grid.astype('int32')
+    return trace_grid.astype('int8')
 
 
 

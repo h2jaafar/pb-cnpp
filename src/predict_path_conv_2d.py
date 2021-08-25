@@ -1,8 +1,10 @@
 
+from operator import le
 from numpy.lib.function_base import average
 from tensorflow import keras
 from tensorflow.keras.models import load_model
 import matplotlib
+import json
 matplotlib.use('TkAgg')
 
 import numpy as np
@@ -11,17 +13,62 @@ import time
 import math
 
 
+map_size = str(64)
+
 # input_path = '../data_2/maze_10x10_rnd/'
 # input_path = '../data_2/maze_15x15_rnd/'
 # input_path = '../data_2/maze_20x20_rnd/'
-input_path = '../data_2/maze_30x30_rnd/'
+# input_path = '../data_2/maze_30x30_rnd/'
+input_path = "../resources/dat_files/test_maps/" + map_size + "/"
 
 # model_file = '../results_2/model_10_conv.hf5'
 # model_file = '../results_2/model_15_conv.hf5'
 # model_file = '../results_2/model_20_conv.hf5'
-model_file = '../results_2/model_30_conv.hf5'
+# model_file = '../results_2/model_30_conv.hf5'
+model_file = '../results_2/model_2d_30k_combined_2.hf5'
 
-ind_test = np.array(range(28000,30000)) #the range of samples for testing (the last 2000 samples are used)
+# model_file = './model_2d_urf.hf5'
+
+# ind_test = np.array(range(28000,29998)) #the range of samples for testing (the last 2000 samples are used)
+ind_test = np.array(range(0,1498))
+
+def pathlength(x,y):
+    n = len(x) 
+    lv = [math.sqrt((x[i]-x[i-1])**2 + (y[i]-y[i-1])**2) for i in range (1,n)]
+    L = sum(lv)
+    return L
+
+def deviation(mp_nr,pred_path_x,pred_path_y,astar_length):
+	
+	# print("x: ", pred_path_x)
+	# print("y: ", pred_path_y)
+
+
+	# for i in range(len(pred_path_x)):
+	# 	if i == 0:
+	# 		prev_x = pred_path_x[0]
+	# 		prev_y = pred_path_y[0]
+	# 	else:
+	# 		prev_x = curr_x
+	# 		prev_y = curr_y
+
+	# 		curr_x = pred_path_x[i]
+	# 		curr_y = pred_path_y[i]
+	
+	cnpp_length = pathlength(pred_path_x,pred_path_y)
+	print("cnpp: ", cnpp_length)
+	print("astar: ", astar_length)
+
+	if astar_length == 0 or cnpp_length == 0:
+		pass
+	else:
+		dev = -((astar_length-cnpp_length)/astar_length)* 100
+		print(mp_nr, "Deviation: ", dev)
+
+		return dev
+
+
+
 
 #######################################################################################################################
 def reconstruct_path(y_pred,env,s,g):
@@ -64,7 +111,7 @@ def reconstruct_path(y_pred,env,s,g):
 				px_pred=px_pred[0:k+2]
 				py_pred=py_pred[0:k+2]
 				path_found=True
-				print('forward path')
+				# print('forward path')
 				break
 			
 			tmp=pred_map[px_pred[k]-1:px_pred[k]+2,py_pred[k]-1:py_pred[k]+2]		
@@ -154,7 +201,7 @@ def reconstruct_path(y_pred,env,s,g):
 				break
 		
 		if ind.size:
-			print("55555", ind)
+			# print("55555", ind)
 			px_pred=np.delete(px_pred,ind.astype(int))
 			py_pred=np.delete(py_pred,ind.astype(int))
 		else:
@@ -202,10 +249,31 @@ metrics_time = []
 metrics_success = []
 metrics_deviation = []
 
+file_path_lengths_urf = "/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/" + map_size + "/lengths_urf.json"
+file_path_lengths_house = "/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/" + map_size + "/lengths_house.json"
+
+
+with open(str(file_path_lengths_urf)) as json_file:
+	length_data_urf = json.load(json_file)
+
+with open(str(file_path_lengths_house)) as json_file:
+	length_data_house = json.load(json_file)	
+
+urf_flag = True
+u_flag = 0
+h_flag = 0
 print('Predict path ...')
 for i in range(m):
 	print(i)
 	
+	flag_nr = i + 1
+
+	#Create flip-flop mechanism to alternate between urf and house map
+	if (flag_nr % 2) == 0:
+		urf_flag = False
+	else:
+		urf_flag = True
+
 	### Predict path
 	a = time.process_time()
 	y_pred=model.predict(x_test[i,:,:,:].reshape(1,n,n,3)).squeeze()
@@ -224,10 +292,26 @@ for i in range(m):
 	# print('Reconstruction time: ', rec_t)
 	metrics_time.append(pred_t+rec_t)	
 
+
+	if urf_flag:
+		
+		map_length = length_data_urf[u_flag]
+		# print("Map = URF")
+		u_flag += 1
+	else:
+		map_length = length_data_house[h_flag]
+		# print("Map = House")
+		h_flag += 1
+	
+	
 	if path_found_flag:
 		metrics_success.append(1)
+		dev = deviation(i,px,py,map_length)
+		if dev:
+			metrics_deviation.append(dev)
 	else:
 		metrics_success.append(0)
+
 
 	### Plot path 
 	t=np.array(np.nonzero(y_test[i,:,:].squeeze()==1)) #ground-truth path
@@ -245,9 +329,16 @@ for i in range(m):
 	# plt.show()
 	# plt.savefig('../results_2/images/env%05d.png' % (i+1))	
 	plt.close()
-	
+
+
+
+
 print("\n Success Rate:", (sum(metrics_success)/len(metrics_success))*100)
 print("\n Avg Time:", average(metrics_time))
+# print("\n", metrics_deviation)
+# print("length of dev:", len(metrics_deviation))
+# print("sum: ", sum(metrics_deviation))
+print("\n Avg Deviation: ", sum(metrics_deviation)/len(metrics_deviation))
 
 	
 
