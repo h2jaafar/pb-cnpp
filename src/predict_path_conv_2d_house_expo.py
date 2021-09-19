@@ -5,22 +5,21 @@ from tensorflow import keras
 from tensorflow.keras.models import load_model
 import matplotlib
 import json
-import statistics
 matplotlib.use('TkAgg')
 
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 import math
+import statistics
 
-
-map_size = str(64)
+map_size = str(100)
 
 # input_path = '../data_2/maze_10x10_rnd/'
 # input_path = '../data_2/maze_15x15_rnd/'
 # input_path = '../data_2/maze_20x20_rnd/'
 # input_path = '../data_2/maze_30x30_rnd/'
-input_path = "../resources/dat_files/test_maps/" + map_size + "/"
+input_path = "../resources/dat_files/test_maps/house_expo/"
 
 # model_file = '../results_2/model_10_conv.hf5'
 # model_file = '../results_2/model_15_conv.hf5'
@@ -32,10 +31,9 @@ model_file = '../results_2/model_2d_30k_combined_2.hf5'
 
 # ind_test = np.array(range(28000,29998)) #the range of samples for testing (the last 2000 samples are used)
 
-if map_size == str(64):
-	ind_test = np.array(range(0,1498))
-else:
-	ind_test = np.array(range(0,2998))
+
+
+ind_test = np.array(range(0,29))
 
 def pathlength(x,y):
     n = len(x) 
@@ -43,42 +41,40 @@ def pathlength(x,y):
     L = sum(lv)
     return L
 
-def open_astar_paths(path):
-    '''
-    Used to open a single json for astar paths
-    '''
-    with open(str(path)) as json_file:
-        data = json.load(json_file)
-        return data
-
-
-def deviation(mp_nr,pred_path_x,pred_path_y,astar_length,astar_trace_x,astar_trace_y):
+def deviation(mp_nr,pred_path_x,pred_path_y,astar_length):
 	
-	print("\n ##### ",pred_path_x, "\n ", pred_path_y)
+	# print("x: ", pred_path_x)
+	# print("y: ", pred_path_y)
+
+
+	# for i in range(len(pred_path_x)):
+	# 	if i == 0:
+	# 		prev_x = pred_path_x[0]
+	# 		prev_y = pred_path_y[0]
+	# 	else:
+	# 		prev_x = curr_x
+	# 		prev_y = curr_y
+
+	# 		curr_x = pred_path_x[i]
+	# 		curr_y = pred_path_y[i]
+	
 	cnpp_length = pathlength(pred_path_x,pred_path_y)
-	astar_length_2 = pathlength(astar_trace_x,astar_trace_y)
-
-
-	print("cnpp: ", cnpp_length)
-	print("astar: ", astar_length)
-	print("astar local: ", astar_length_2)
-
-
+	# print("cnpp: ", cnpp_length)
+	# print("astar: ", astar_length)
 
 	if astar_length == 0 or cnpp_length == 0:
 		pass
 	else:
 		dev = -((astar_length-cnpp_length)/astar_length)* 100
-		print(mp_nr, "Deviation: ", dev)
+		# print(mp_nr, "Deviation: ", dev)
 
 		return dev
+
 
 def dist_left(pred_path_x,pred_path_y,astar_length):
 	cnpp_length = pathlength(pred_path_x,pred_path_y)
 	d_left  = astar_length-cnpp_length
 	return d_left
-
-
 
 #######################################################################################################################
 def reconstruct_path(y_pred,env,s,g):
@@ -259,41 +255,25 @@ metrics_time = []
 metrics_success = []
 metrics_deviation = []
 metrics_dist_left = []
-file_path_lengths_urf = "/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/" + map_size + "/lengths_urf.json"
-file_path_lengths_house = "/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/" + map_size + "/lengths_house.json"
 
-file_path_trace_urf = "/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/" + map_size + "/paths_urf.json"
-file_path_trace_house = "/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/" + map_size + "/paths_house.json"
+
+
+file_path_lengths_urf = "/home/hussein/Desktop/pb-cnpp/pb-cnpp/resources/jsons/test_maps/house_expo/lengths_house_100x100.json"
+
+
 
 with open(str(file_path_lengths_urf)) as json_file:
 	length_data_urf = json.load(json_file)
 
-with open(str(file_path_lengths_house)) as json_file:
-	length_data_house = json.load(json_file)	
 
-
-astar_paths_trace_urf = open_astar_paths(file_path_trace_urf)
-astar_paths_trace_house = open_astar_paths(file_path_trace_house)
 
 urf_flag = True
 u_flag = 0
 h_flag = 0
 print('Predict path ...')
-
-
 for i in range(m):
+	print(i)
 
-	print("\n ______________  New Map: ", i,  "_________________________ \n")
-	astar_trace_x = []
-	astar_trace_y = []
-	
-	flag_nr = i + 1
-
-	#Create flip-flop mechanism to alternate between urf and house map
-	if (flag_nr % 2) == 0:
-		urf_flag = False
-	else:
-		urf_flag = True
 
 	### Predict path
 	a = time.process_time()
@@ -315,41 +295,19 @@ for i in range(m):
 
 
 
-	if urf_flag:
-		print("URF Type,",u_flag)
-		map_length = length_data_urf[u_flag]
-		astar_trace = astar_paths_trace_urf[u_flag]
+	map_length = length_data_urf[u_flag]
 		# print("Map = URF")
-		u_flag += 1
 
-	else:
-		print("House type,", h_flag)
-		map_length = length_data_house[h_flag]
-		astar_trace = astar_paths_trace_house[h_flag]
-		
-		h_flag += 1
-	
-	
-	# print("555%", astar_trace)
-	for points in astar_trace:
-		astar_trace_x.append(points[0])
-		astar_trace_y.append(points[1])
-
-	
-	print("Path Found:", path_found_flag)
-	print("Px_start: ", px[0])
-	print("Py_start: ", py[0])
 	
 	if path_found_flag:
 		metrics_success.append(1)
-		dev = deviation(i,px,py,map_length,astar_trace_x,astar_trace_y)
+		dev = deviation(i,px,py,map_length)
 		if dev:
 			metrics_deviation.append(dev)
 	else:
 		metrics_success.append(0)
 		d_left = dist_left(px,py,map_length)
 		metrics_dist_left.append(d_left)
-
 
 
 	### Plot path 
@@ -379,7 +337,6 @@ print("\n Avg Time:", average(metrics_time))
 # print("sum: ", sum(metrics_deviation))
 print("\n Avg Deviation: ", sum(metrics_deviation)/len(metrics_deviation))
 print("\n Avg Dist Left when failed: ", statistics.mean(metrics_dist_left))
-
 
 	
 
